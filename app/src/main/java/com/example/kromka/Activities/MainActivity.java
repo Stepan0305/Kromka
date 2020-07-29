@@ -25,12 +25,13 @@ import com.example.kromka.Models.Question;
 import com.example.kromka.R;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.ResourceBundle;
 
 import static android.widget.LinearLayout.LayoutParams;
 
 public class MainActivity extends AppCompatActivity {
-    Button btnNext;  //нижняя кнопка, которая в зависимости от текущего вопроса выполняет разные действия
+    Button btnNext, btnBack;  //нижние кнопки, которые в зависимости от текущего вопроса выполняют разные действия
     TextView txtQuestionCount, txtQuestionText, txtWordOnCard;  //текстовые поля, на которых отображается различная информация
     LinearLayout container;  //контейнер, в который будут добавляться кнопки и доп.описание, если есть
     RelativeLayout containerCard;  //карточка, которая меняет размер в зависимости от устройства (78% от высоты)
@@ -41,9 +42,8 @@ public class MainActivity extends AppCompatActivity {
     int currentQuestionNumber = 0;  //номер текущего вопроса
     Question currentQuestion; //текущий вопрос
     ArrayList<Question> questions;  //массив вопросов
-    int currentPoints = -1, //очки, полученные за выбранный вариант ответа. Принимает значение -1, если ничего не выбрано
-            sum = 0;  //текущая сумма очков
     ArrayList<Drawable> progressbar = new ArrayList<>();  //изображения индикатора пройденности
+    int[] currentPoints = new int[]{-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0};
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -55,6 +55,7 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         //инициализация переменных
         btnNext = findViewById(R.id.btnNext);
+        btnBack = findViewById(R.id.btnBack);
         txtQuestionCount = findViewById(R.id.txtQuestionCount);
         txtQuestionText = findViewById(R.id.txtQuestionText);
         container = findViewById(R.id.linearContainer);
@@ -62,7 +63,7 @@ public class MainActivity extends AppCompatActivity {
         containerCard = findViewById(R.id.containerCard);
         txtWordOnCard = findViewById(R.id.txtWordOnTopOfCard);
         dbHelper = new DbHelper(this);
-        //изменение размера карточки в зависимости от размера экрана
+        //изменение размера элементов в зависимости от размера экрана
         dm = new DisplayMetrics();
         getWindowManager().getDefaultDisplay().getMetrics(dm);
         height = dm.heightPixels;
@@ -76,35 +77,47 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * Обработчик нажатий на кнопку
+     * Обработчик нажатий на кнопку вперед
      * Если currentPoints = -1, то есть ничего не выбрано, польвателя об этом оповестит
      * Если currentQuestionNumber < 12, то загружается вопрос и ответы к нему
      * Если currentQuestionNumber = 12, то загружается результат
      * Если currentQuestionNumber = 13, то опрос обнуляется и начинается заново
      */
     public void onNextClicked(View v) {
-        if (currentPoints == -1) {
+        if (currentPoints[currentQuestionNumber] == -1) {
             Toast.makeText(this, "Выберите один вариант ответа", Toast.LENGTH_SHORT).show();
         } else {
-            if (currentQuestionNumber < 12) {
-                sum += currentPoints;
-                currentPoints = -1;
+            if (currentQuestionNumber < questions.size()-1) {
+//                currentPoints = -1;
                 container.removeAllViews();
                 currentQuestionNumber++;
                 currentQuestion = questions.get(currentQuestionNumber);
                 drawCurrentState();
-            } else if (currentQuestionNumber == 12) {
+            } else if (currentQuestionNumber == questions.size()-1) {
                 container.removeAllViews();
                 currentQuestionNumber++;
                 drawFinalPage();
-            } else if (currentQuestionNumber == 13) {
+            } else if (currentQuestionNumber == questions.size()) {
                 currentQuestionNumber = 0;
+                currentPoints = new int[]{-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0};
+                questions = dbHelper.getAllQuestions();
                 currentQuestion = questions.get(currentQuestionNumber);
                 container.removeAllViews();
                 txtWordOnCard.setText("Вопрос");
                 txtQuestionCount.setVisibility(View.VISIBLE);
                 drawCurrentState();
             }
+        }
+    }
+
+    public void onBackClicked(View v) {
+        if (currentQuestionNumber == questions.size()){
+            android.os.Process.killProcess(android.os.Process.myPid());
+        } else {
+            currentQuestionNumber--;
+            currentQuestion = questions.get(currentQuestionNumber);
+            container.removeAllViews();
+            drawCurrentState();
         }
     }
 
@@ -116,6 +129,11 @@ public class MainActivity extends AppCompatActivity {
     private void drawCurrentState() {
         txtQuestionCount.setText((currentQuestionNumber + 1) + " из " + questions.size());
         txtQuestionText.setText(currentQuestion.getTitle());
+        btnNext.getLayoutParams().width = (int) (width / 2.3);
+        btnNext.setText("Вперед");
+        btnBack.setText("Назад");
+        btnBack.getLayoutParams().width = (int) (width / 2.3);
+        btnBack.setVisibility(View.VISIBLE);
         try {
             global.removeViewAt(2);
         } catch (NullPointerException e) {
@@ -133,30 +151,40 @@ public class MainActivity extends AppCompatActivity {
             layoutParams.setMargins(0, 10, 0, 10);
             textView.setLayoutParams(layoutParams);
             textView.setTextSize(20);
+            textView.setTextColor(getResources().getColor(R.color.black));
             textView.setPadding(40, 0, 40, 10);
             textView.setText(currentQuestion.getSubTitle());
             container.addView(textView);
         }
         ArrayList<Answer> answers = currentQuestion.getAnswers();
-        for (Answer answer : answers) {
+        for (final Answer answer : answers) {
             final Button button = new Button(this);
             LayoutParams layoutParams = new LayoutParams(LayoutParams.MATCH_PARENT, (int) (height * 0.07));
             layoutParams.setMargins(width / 20, 15, width / 20, 0);
             button.setLayoutParams(layoutParams);
             button.setText(answer.getText());
-            button.setTextColor(getResources().getColor(R.color.greyBorderOfButton));
+            button.setTextSize(17);
+            button.setTextColor(getResources().getColor(R.color.black));
             button.setAllCaps(false);
             button.setId(answers.indexOf(answer));
-            button.setBackground(getResources().getDrawable(R.drawable.button_non_active));
+            if (answer.isChosen()) {
+                button.setBackground(getResources().getDrawable(R.drawable.button_active));
+                button.setTextColor(getResources().getColor(R.color.white));
+            } else {
+                button.setBackground(getResources().getDrawable(R.drawable.button_non_active));
+                button.setTextColor(getResources().getColor(R.color.black));
+            }
+
             button.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    if (button.getCurrentTextColor() == getResources().getColor(R.color.greyBorderOfButton)) {
+                    if (button.getCurrentTextColor() == getResources().getColor(R.color.black)) {
                         disableExcessButtons(button.getId());
                     } else {
                         button.setBackground(getResources().getDrawable(R.drawable.button_non_active));
-                        button.setTextColor(getResources().getColor(R.color.greyBorderOfButton));
-                        currentPoints = -1;
+                        button.setTextColor(getResources().getColor(R.color.black));
+                        answer.setChosen(false);
+                        currentPoints[currentQuestionNumber] = -1;
                     }
                 }
             });
@@ -168,13 +196,15 @@ public class MainActivity extends AppCompatActivity {
             layoutParams.setMargins(0, height / 30, 0, 0);
             textView.setLayoutParams(layoutParams);
             textView.setTextSize(15);
-            btnNext.setText("Следующий вопрос");
             textView.setPadding(width / 25, 0, width / 25, 0);
             textView.setGravity(Gravity.CENTER);
+            textView.setTextColor(getResources().getColor(R.color.black));
             textView.setText(getResources().getText(R.string.text_start));
             container.addView(textView);
+            btnBack.setVisibility(View.GONE);
+            btnNext.getLayoutParams().width = (int) (width/1.09);
         } else if (currentQuestionNumber == 12) {
-            btnNext.setText("Получить результат");
+            btnNext.setText("Результат");
         }
     }
 
@@ -190,10 +220,12 @@ public class MainActivity extends AppCompatActivity {
             if (answers.indexOf(answer) == id) {
                 button.setBackground(getResources().getDrawable(R.drawable.button_active));
                 button.setTextColor(getResources().getColor(R.color.white));
-                currentPoints = answer.getPoints();
+                answer.setChosen(true);
+                currentPoints[currentQuestionNumber] = answer.getPoints();
             } else {
                 button.setBackground(getResources().getDrawable(R.drawable.button_non_active));
-                button.setTextColor(getResources().getColor(R.color.greyBorderOfButton));
+                button.setTextColor(getResources().getColor(R.color.black));
+                answer.setChosen(false);
             }
         }
     }
@@ -203,14 +235,15 @@ public class MainActivity extends AppCompatActivity {
      */
     private void drawFinalPage() {
         txtQuestionText.setText("Прогноз пятилетней выживаемости составляет " + getLiveChance());
-        sum = 0;
-        btnNext.setText("Рассчитать еще раз");
+        btnNext.setText("Повторить");
+        btnBack.setText("Выход");
         TextView textView = new TextView(this);
         LayoutParams layoutParams = new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
         layoutParams.setMargins(0, height / 30, 0, 0);
         textView.setLayoutParams(layoutParams);
-        textView.setTextSize(15);
+        textView.setTextSize(16);
         textView.setPadding(width / 20, 0, width / 20, 0);
+        textView.setTextColor(getResources().getColor(R.color.black));
         textView.setText(getResources().getText(R.string.text_end));
         container.addView(textView);
         txtWordOnCard.setText("Заключение");
@@ -221,6 +254,10 @@ public class MainActivity extends AppCompatActivity {
      * Функция, возвращающая определенную строку в зависимости от количества набранных баллов
      */
     private String getLiveChance() {
+        int sum = 0;
+        for (int i: currentPoints){
+            sum+=i;
+        }
         switch (sum) {
             case 3:
                 return "98,5 %";

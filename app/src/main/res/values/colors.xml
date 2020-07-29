@@ -8,5 +8,7 @@
     <color name="black">#FC000000</color>
     <color name="greyText">#BFBFBF</color>
     <color name="superLightBlue">#1A00A0E1</color>
+    <color name="superLightRed">#1AD22929</color>
+    <color name="red">#E10000</color>
     <color name="greyBorderOfButton">#C0C0C0</color>
 </resources>
